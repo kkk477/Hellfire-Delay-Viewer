@@ -1,0 +1,8 @@
+# Ignore build-related folders
+build/
+dist/
+logs/
+
+# Ignore system files
+*.pyc
+__pycache__/
