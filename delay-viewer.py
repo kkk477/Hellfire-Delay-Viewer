@@ -79,12 +79,14 @@ class ImageRecognitionTimerApp(QMainWindow):
         self.start_button = QPushButton('시 작')
         self.start_button.setFixedHeight(30)
         self.start_button.setStyleSheet("font-size: 15px;")
+        self.start_button.setEnabled(True)
         self.start_button.clicked.connect(self.start_recognition)
         self.control_layout.addWidget(self.start_button)
 
         self.stop_button = QPushButton('정 지')
         self.stop_button.setFixedHeight(30)
         self.stop_button.setStyleSheet("font-size: 15px;")
+        self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_recognition)
         self.control_layout.addWidget(self.stop_button)
 
@@ -106,6 +108,8 @@ class ImageRecognitionTimerApp(QMainWindow):
 
     def start_recognition(self):
         if not self.recognition_thread:
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
             self.log('Image recognition started.')
             self.recognition_thread = RecognitionThread(self.template_durations, './images/mp_zero.png')
             self.recognition_thread.recognized.connect(self.add_timer)
@@ -113,6 +117,8 @@ class ImageRecognitionTimerApp(QMainWindow):
 
     def stop_recognition(self):
         if self.recognition_thread:
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
             self.recognition_thread.stop()
             self.recognition_thread = None
             self.log('Image recognition stopped.')
