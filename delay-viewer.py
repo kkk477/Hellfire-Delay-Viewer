@@ -28,7 +28,7 @@ class RecognitionThread(QThread):
             # 먼저 MP 템플릿 감지 확인
             mp_res = cv2.matchTemplate(gray_frame, self.mp_template, cv2.TM_CCOEFF_NORMED)
             mp_min_val, mp_max_val, mp_min_loc, mp_max_loc = cv2.minMaxLoc(mp_res)
-            if mp_max_val > 0.8:
+            if mp_max_val > 0.9:
                 # MP 템플릿이 감지된 경우에만 다른 템플릿 감지 시도
                 for template_name, template in templates.items():
                     if template is None:
