@@ -4,7 +4,7 @@ import numpy as np
 import threading
 import time
 import pyautogui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTextEdit # type: ignore
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QPushButton, QVBoxLayout, QHBoxLayout, QWidget # type: ignore
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal # type: ignore
 import os
 import datetime
@@ -39,7 +39,7 @@ class RecognitionThread(QThread):
                     if mp_max_val > 0.8:
                         self.recognized.emit(template_name)
 
-            time.sleep(0.1)
+            time.sleep(0.05)
 
     def stop(self):
         self.running = False
@@ -50,51 +50,41 @@ class ImageRecognitionTimerApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('헬파이어 딜레이 표시기')
-        self.setGeometry(100, 100, 600, 400)
-        self.setFixedSize(600, 400)
+        self.setGeometry(100, 100, 300, 200)
+        self.setFixedSize(300, 400)
 
         # Main layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
 
-        # Top layout for timer list and log box
+        # Top layout for timer list
         self.top_layout = QHBoxLayout()
         self.main_layout.addLayout(self.top_layout, stretch=2)
 
         # Timer list
         timer_layout = QVBoxLayout()
         timer_label = QLabel('타이머')
-        timer_label.setStyleSheet("font-size: 15px;")  # Set font size to 20
+        timer_label.setStyleSheet("font-size: 15px;")  # Set font size to 15
         timer_layout.addWidget(timer_label)
         self.timer_list = QListWidget()
-        self.timer_list.setStyleSheet("font-size: 30px;")  # Set font size to 20
+        self.timer_list.setStyleSheet("font-size: 20px;")  # Set font size to 20
         timer_layout.addWidget(self.timer_list)
         self.top_layout.addLayout(timer_layout)
-
-        # Log box
-        log_layout = QVBoxLayout()
-        log_label = QLabel('Logs:')
-        log_label.setStyleSheet("font-size: 15px;")  # Set font size to 20
-        log_layout.addWidget(log_label)
-        self.log_box = QTextEdit()
-        self.log_box.setReadOnly(True)
-        log_layout.addWidget(self.log_box)
-        self.top_layout.addLayout(log_layout)
 
         # Control buttons
         self.control_layout = QHBoxLayout()
         self.main_layout.addLayout(self.control_layout, stretch=1)
         
         self.start_button = QPushButton('시 작')
-        self.start_button.setFixedHeight(60)
-        self.start_button.setStyleSheet("font-size: 30px;")
+        self.start_button.setFixedHeight(30)
+        self.start_button.setStyleSheet("font-size: 15px;")
         self.start_button.clicked.connect(self.start_recognition)
         self.control_layout.addWidget(self.start_button)
 
         self.stop_button = QPushButton('정 지')
-        self.stop_button.setFixedHeight(60)
-        self.stop_button.setStyleSheet("font-size: 30px;")
+        self.stop_button.setFixedHeight(30)
+        self.stop_button.setStyleSheet("font-size: 15px;")
         self.stop_button.clicked.connect(self.stop_recognition)
         self.control_layout.addWidget(self.stop_button)
 
@@ -112,7 +102,7 @@ class ImageRecognitionTimerApp(QMainWindow):
             os.makedirs('logs')
 
     def log(self, message):
-        self.log_box.append(message)
+        print(message)  # 콘솔에 로그 출력
 
     def start_recognition(self):
         if not self.recognition_thread:
@@ -164,7 +154,6 @@ class ImageRecognitionTimerApp(QMainWindow):
             if self.timer_list.item(i).text().startswith(self.template_durations[template_name]['name']):
                 self.timer_list.item(i).setText(updated_label)
 
-
     def remove_timer(self, template_name):
         for i in range(self.timer_list.count()):
             if self.timer_list.item(i).text().startswith(self.template_durations[template_name]['name']):
@@ -175,18 +164,17 @@ class ImageRecognitionTimerApp(QMainWindow):
             self.log(f"{self.template_durations[template_name]['name']} timer finished and removed.")
             self.timers[template_name]['active'] = False
 
-
     def save_log_to_file(self):
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            filename = f'log_{timestamp}.txt'
-            with open(f'logs/{filename}', 'w') as log_file:
-                log_file.write(self.log_box.toPlainText())
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filename = f'log_{timestamp}.txt'
+        with open(f'logs/{filename}', 'w') as log_file:
+            log_file.write('Logs saved to file.')
 
     def closeEvent(self, event):
-            if self.recognition_thread:
-                self.recognition_thread.stop()
-            self.save_log_to_file()
-            event.accept()
+        if self.recognition_thread:
+            self.recognition_thread.stop()
+        self.save_log_to_file()
+        event.accept()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
