@@ -17,7 +17,6 @@ class RecognitionThread(QThread):
         self.template_durations = template_durations
         self.mp_template = cv2.imread(mp_template_path, 0)  # MP 템플릿 로드
         self.running = True
-        self.mp_detected = False  # MP 템플릿이 감지되었는지 여부를 추적
 
     def run(self):
         templates = {name: cv2.imread(name, 0) for name in self.template_durations.keys()}
@@ -29,18 +28,17 @@ class RecognitionThread(QThread):
             # 먼저 MP 템플릿 감지 확인
             mp_res = cv2.matchTemplate(gray_frame, self.mp_template, cv2.TM_CCOEFF_NORMED)
             mp_min_val, mp_max_val, mp_min_loc, mp_max_loc = cv2.minMaxLoc(mp_res)
-            self.mp_detected = mp_max_val > 0.8
+            if mp_max_val > 0.8:
+                # MP 템플릿이 감지된 경우에만 다른 템플릿 감지 시도
+                for template_name, template in templates.items():
+                    if template is None:
+                        continue
 
-            for template_name, template in templates.items():
-                if template is None:
-                    continue
+                    res = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
-                res = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
-                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-
-                if max_val > 0.8 and self.mp_detected:
-                    # 헬파이어 또는 삼매진화 템플릿과 MP 템플릿이 모두 감지되었을 때
-                    self.recognized.emit(template_name)
+                    if max_val > 0.8:
+                        self.recognized.emit(template_name)
 
             time.sleep(0.05)
 
