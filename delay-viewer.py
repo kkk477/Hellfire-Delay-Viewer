@@ -94,7 +94,7 @@ class ImageRecognitionTimerApp(QMainWindow):
         # Timer and recognition control
         self.recognition_thread = None
         self.template_durations = {
-            './images/hellfire.png': {'duration': 9, 'name': '헬파이어'},  # 9초 타이머
+            './images/hellfire.png': {'duration': 8.5, 'name': '헬파이어'},  # 9초 타이머
             './images/crosshellfire.png': {'duration': 60, 'name': '삼매진화'},  # 60초 타이머
         }
         self.timers = {}
