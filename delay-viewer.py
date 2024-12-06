@@ -4,18 +4,20 @@ import numpy as np
 import threading
 import time
 import pyautogui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QPushButton, QVBoxLayout, QHBoxLayout, QWidget # type: ignore
-from PyQt5.QtCore import QTimer, QThread, pyqtSignal # type: ignore
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QListWidget, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider # type: ignore
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt # type: ignore
 import os
 import datetime
+import json
 
 class RecognitionThread(QThread):
     recognized = pyqtSignal(str)
 
-    def __init__(self, template_durations, mp_template_path):  # mp_template_path 추가
+    def __init__(self, template_durations, mp_template_path, sleep_duration):
         super().__init__()
         self.template_durations = template_durations
         self.mp_template = cv2.imread(mp_template_path, 0)  # MP 템플릿 로드
+        self.sleep_duration = sleep_duration
         self.running = True
 
     def run(self):
@@ -40,7 +42,7 @@ class RecognitionThread(QThread):
                     if max_val > 0.8:
                         self.recognized.emit(template_name)
 
-            time.sleep(0.05)
+            time.sleep(self.sleep_duration)
 
     def stop(self):
         self.running = False
@@ -48,11 +50,33 @@ class RecognitionThread(QThread):
         self.wait()
 
 class ImageRecognitionTimerApp(QMainWindow):
+    def save_window_size(self):
+        self.settings['window_size'] = {'width': self.width(), 'height': self.height()}
+        self.settings['opacity'] = self.windowOpacity() * 100
+        with open('settings.txt', 'w', encoding='utf-8') as file:
+            json.dump(self.settings, file, indent=4, ensure_ascii=False)
+    def change_opacity(self, value):
+        self.setWindowOpacity(value / 100.0)
     def __init__(self):
         super().__init__()
+        
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.setWindowTitle('헬파이어 딜레이 표시기')
-        self.setGeometry(100, 100, 300, 200)
-        self.setFixedSize(300, 400)
+        self.settings = self.load_settings()
+        window_size = self.settings.get('window_size', {'width': 300, 'height': 400})
+        opacity = self.settings.get('opacity', 100)
+        self.setWindowOpacity(opacity / 100.0)
+        self.setGeometry(100, 100, window_size['width'], window_size['height'])
+        self.setMinimumSize(200, 300)
+        self.setMaximumSize(300, 400)
+
+        
+        self.template_durations = self.settings.get('template_durations', {
+            './images/hellfire.png': {'duration': 8.5, 'name': '헬파이어'},
+            './images/crosshellfire.png': {'duration': 60, 'name': '삼매진화'},
+            './images/hellfiredetonation.png': {'duration': 255, 'name': '지폭지술'},
+        })
+        self.sleep_duration = self.settings.get('sleep_duration', 0.05)
 
         # Main layout
         self.central_widget = QWidget()
@@ -66,12 +90,18 @@ class ImageRecognitionTimerApp(QMainWindow):
         # Timer list
         timer_layout = QVBoxLayout()
         timer_label = QLabel('타이머')
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setMinimum(30)  # 최소 투명도 (30%)
+        self.opacity_slider.setMaximum(100)  # 최대 투명도 (100%)
+        self.opacity_slider.setValue(int(opacity))  # 초기값 100%
+        self.opacity_slider.valueChanged.connect(self.change_opacity)
         timer_label.setStyleSheet("font-size: 15px;")  # Set font size to 15
-        timer_layout.addWidget(timer_label)
+        self.top_layout.addWidget(timer_label)
+        self.top_layout.addWidget(self.opacity_slider)
         self.timer_list = QListWidget()
         self.timer_list.setStyleSheet("font-size: 20px;")  # Set font size to 20
         timer_layout.addWidget(self.timer_list)
-        self.top_layout.addLayout(timer_layout)
+        self.main_layout.addWidget(self.timer_list)
 
         # Control buttons
         self.control_layout = QHBoxLayout()
@@ -93,26 +123,38 @@ class ImageRecognitionTimerApp(QMainWindow):
 
         # Timer and recognition control
         self.recognition_thread = None
-        self.template_durations = {
-            './images/hellfire.png': {'duration': 8.5, 'name': '헬파이어'},  # 9초 타이머
-            './images/crosshellfire.png': {'duration': 60, 'name': '삼매진화'},  # 60초 타이머
-        }
         self.timers = {}
         self.timer_objects = {}
 
-        # Ensure logs directory exists
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
-
-    def log(self, message):
-        print(message)  # 콘솔에 로그 출력
+    def load_settings(self):
+        settings_path = 'settings.txt'
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, 'r', encoding='utf-8') as file:
+                    return json.load(file)
+            except UnicodeDecodeError:
+                with open(settings_path, 'r', encoding='ansi') as file:
+                    return json.load(file)
+                return json.load(file)
+        else:
+            default_settings = {
+                'template_durations': {
+                    './images/hellfire.png': {'duration': 8.5, 'name': '헬파이어'},
+                    './images/crosshellfire.png': {'duration': 60, 'name': '삼매진화'},
+                    './images/hellfiredetonation.png': {'duration': 255, 'name': '지폭지술'},
+                },
+                'sleep_duration': 0.05,
+                'window_size': {'width': 300, 'height': 400}
+            }
+            with open(settings_path, 'w', encoding='utf-8') as file:
+                json.dump(default_settings, file, indent=4, ensure_ascii=False)
+            return default_settings
 
     def start_recognition(self):
         if not self.recognition_thread:
             self.start_button.setEnabled(False)
             self.stop_button.setEnabled(True)
-            self.log('Image recognition started.')
-            self.recognition_thread = RecognitionThread(self.template_durations, './images/mp_zero.png')
+            self.recognition_thread = RecognitionThread(self.template_durations, './images/mp_zero.png', self.sleep_duration)
             self.recognition_thread.recognized.connect(self.add_timer)
             self.recognition_thread.start()
 
@@ -122,8 +164,6 @@ class ImageRecognitionTimerApp(QMainWindow):
             self.stop_button.setEnabled(False)
             self.recognition_thread.stop()
             self.recognition_thread = None
-            self.log('Image recognition stopped.')
-            self.save_log_to_file()
 
     def add_timer(self, template_name):
         if template_name in self.timers and self.timers[template_name]['active']:
@@ -168,19 +208,12 @@ class ImageRecognitionTimerApp(QMainWindow):
                 break
 
         if template_name in self.timers:
-            self.log(f"{self.template_durations[template_name]['name']} timer finished and removed.")
             self.timers[template_name]['active'] = False
 
-    def save_log_to_file(self):
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        filename = f'log_{timestamp}.txt'
-        with open(f'logs/{filename}', 'w') as log_file:
-            log_file.write('Logs saved to file.')
-
     def closeEvent(self, event):
+        self.save_window_size()
         if self.recognition_thread:
             self.recognition_thread.stop()
-        self.save_log_to_file()
         event.accept()
 
 if __name__ == '__main__':
