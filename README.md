@@ -34,7 +34,6 @@ python delay-viewer.py
 
 - `delay-viewer.py`: 메인 프로그램 파일입니다.
 - `images/`: 감지할 이미지 파일들을 저장하는 폴더입니다.
-- `logs/`: 프로그램 실행 중 생성되는 로그 파일들이 저장되는 폴더입니다. (`.gitignore`로 제외됩니다)
 
 ## 사용 방법
 
